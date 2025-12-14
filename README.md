@@ -18,7 +18,7 @@ A professional, feature-rich temperature monitoring application with intelligent
 
 ### 📊 **Intelligent Logging System** 
 - **Minute-Interval Logging**: Logs once per minute during normal operation
-- **Alert-Triggered Logging**: Immediate logging for critical/warning events
+- **Alert-Triggered Logging**: Immediate logging for critical/warning events 
 - **1-Hour Cooldown**: Prevents log spam for repeated alerts
 - **Daily Log Files**: Organized `Daily logs/` directory with `.logs` files
 - **Search & Export**: Filter logs by time range and export to Downloads
