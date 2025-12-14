@@ -1,58 +1,53 @@
 class ThemeManager:
-    
     def __init__(self):
-        # Set default theme to "light" instead of "dark"
-        self.current_theme = "light"  # Default theme is now light
+        self.current_theme = "light"
         self.themes = {
             "dark": {
-                'primary': '#3b82f6',      # Professional Blue
-                'secondary': '#60a5fa',    # Medium Blue
-                'accent': '#93c5fd',       # Light Blue
-                'background': '#0f172a',   # Dark blue background
-                'surface': '#1e293b',      # Card surface
-                'card_bg': '#1e293b',      # Card background
-                'text_primary': '#f8fafc', # Light text
-                'text_secondary': '#cbd5e1', # Medium light text
-                'success': '#10b981',      # Green
-                'warning': '#f59e0b',      # Amber
-                'error': '#ef4444',        # Red
-                'border': '#334155',       # Dark border
-                'hover': '#374151',        # Hover state
-                'grid_color': '#2d3748',   # Grid pattern color
-                'input_bg': '#1e293b',     # Input background
-                'input_fg': '#f8fafc',     # Input foreground
+                'primary': '#3b82f6',
+                'secondary': '#60a5fa',
+                'accent': '#93c5fd',
+                'background': '#0f172a',
+                'surface': '#1e293b',
+                'card_bg': '#1e293b',
+                'text_primary': '#f8fafc',
+                'text_secondary': '#cbd5e1',
+                'success': '#10b981',
+                'warning': '#f59e0b',
+                'error': '#ef4444',
+                'border': '#334155',
+                'hover': '#374151',
+                'grid_color': '#2d3748',
+                'input_bg': '#1e293b',
+                'input_fg': '#f8fafc',
             },
             "light": {
-                'primary': '#2563eb',      # Professional Blue
-                'secondary': '#3b82f6',    # Medium Blue
-                'accent': '#60a5fa',       # Light Blue
-                'background': '#f8fafc',   # Light background
-                'surface': '#ffffff',      # Card surface
-                'card_bg': '#ffffff',      # Card background
-                'text_primary': '#1e293b', # Dark text
-                'text_secondary': '#475569', # Medium dark text
-                'success': '#059669',      # Green
-                'warning': '#d97706',      # Amber
-                'error': '#dc2626',        # Red
-                'border': '#e2e8f0',       # Light border
-                'hover': '#f1f5f9',        # Hover state
-                'grid_color': '#e2e8f0',   # Grid pattern color
-                'input_bg': '#ffffff',     # Input background
-                'input_fg': '#1e293b',     # Input foreground,
+                'primary': '#2563eb',
+                'secondary': '#3b82f6',
+                'accent': '#60a5fa',
+                'background': '#f8fafc',
+                'surface': '#ffffff',
+                'card_bg': '#ffffff',
+                'text_primary': '#1e293b',
+                'text_secondary': '#475569',
+                'success': '#059669',
+                'warning': '#d97706',
+                'error': '#dc2626',
+                'border': '#e2e8f0',
+                'hover': '#f1f5f9',
+                'grid_color': '#e2e8f0',
+                'input_bg': '#ffffff',
+                'input_fg': '#1e293b',
             }
         }
     
     def get_theme(self):
-        """Get current theme colors"""
         return self.themes[self.current_theme]
     
     def toggle_theme(self):
-        """Toggle between dark and light themes"""
         self.current_theme = "light" if self.current_theme == "dark" else "dark"
         return self.get_theme()
     
     def set_theme(self, theme_name):
-        """Set specific theme"""
         if theme_name in self.themes:
             self.current_theme = theme_name
         return self.get_theme()

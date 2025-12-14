@@ -1,7 +1,7 @@
 import tkinter as tk
 
 class ResponsiveGradientBackground:
-    """Creates a responsive gradient background that adapts to theme and window size"""
+    """Creates a responsive gradient background"""
     def __init__(self, canvas, width, height, theme_colors):
         self.canvas = canvas
         self.width = width
@@ -11,24 +11,20 @@ class ResponsiveGradientBackground:
         self.create_responsive_background()
     
     def create_responsive_background(self):
-        """Create responsive gradient background that adapts to theme"""
-        # Clear existing gradients
+        """Create responsive gradient background"""
         for grad_id in self.gradient_ids:
             self.canvas.delete(grad_id)
         self.gradient_ids = []
         
-        # Set canvas background
         self.canvas.configure(bg=self.theme_colors['background'])
         
-        # For light theme, use minimal background with subtle gradient
-        if self.theme_colors['background'] == '#f8fafc':  # Light theme
+        if self.theme_colors['background'] == '#f8fafc':
             self.create_light_background()
-        else:  # Dark theme
+        else:
             self.create_dark_background()
     
     def create_light_background(self):
-        """Create minimal, clean background for light theme"""
-        # Subtle gradient from top to bottom
+        """Create light theme background"""
         colors = [
             self.theme_colors['background'],
             '#f1f5f9',
@@ -46,11 +42,10 @@ class ResponsiveGradientBackground:
             )
             self.gradient_ids.append(grad_id)
         
-        # Add very subtle grid pattern for light theme
         self.create_subtle_grid()
     
     def create_dark_background(self):
-        """Create sophisticated gradient background for dark theme"""
+        """Create dark theme background"""
         colors = [
             self.theme_colors['background'],
             '#1e293b',
@@ -69,20 +64,15 @@ class ResponsiveGradientBackground:
             )
             self.gradient_ids.append(grad_id)
         
-        # Add grid pattern for dark theme
         self.create_subtle_grid()
         self.create_minimal_decorations()
     
     def create_subtle_grid(self):
-        """Add a very subtle grid pattern that adapts to theme"""
+        """Add subtle grid pattern"""
         grid_color = self.theme_colors['grid_color']
-        spacing = 100  # Responsive spacing
-        
-        # Calculate appropriate spacing based on window size
         max_spacing = max(80, min(120, self.width // 15))
         spacing = max_spacing
         
-        # Vertical lines - only add if window is wide enough
         if self.width > 600:
             for x in range(0, self.width, spacing):
                 line_id = self.canvas.create_line(
@@ -93,7 +83,6 @@ class ResponsiveGradientBackground:
                 )
                 self.gradient_ids.append(line_id)
         
-        # Horizontal lines - only add if window is tall enough
         if self.height > 400:
             for y in range(0, self.height, spacing):
                 line_id = self.canvas.create_line(
@@ -105,9 +94,8 @@ class ResponsiveGradientBackground:
                 self.gradient_ids.append(line_id)
     
     def create_minimal_decorations(self):
-        """Add minimal decorative elements that adapt to theme"""
-        if self.theme_colors['background'] == '#f8fafc':  # Light theme
-            # Minimal decorations for light theme
+        """Add minimal decorative elements"""
+        if self.theme_colors['background'] == '#f8fafc':
             accent_color = self.theme_colors['accent']
             for i in range(3):
                 size = 60 + i * 15
@@ -122,8 +110,7 @@ class ResponsiveGradientBackground:
                     dash=(4, 8)
                 )
                 self.gradient_ids.append(circle_id)
-        else:  # Dark theme
-            # Slightly more prominent decorations for dark theme
+        else:
             accent_color = self.theme_colors['accent']
             for i in range(4):
                 size = 40 + i * 20
@@ -140,6 +127,6 @@ class ResponsiveGradientBackground:
                 self.gradient_ids.append(circle_id)
     
     def update_theme(self, theme_colors):
-        """Update background with new theme colors"""
+        """Update background with new theme"""
         self.theme_colors = theme_colors
         self.create_responsive_background()
