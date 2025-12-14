@@ -24,7 +24,7 @@ A professional, feature-rich temperature monitoring application with intelligent
 - **Search & Export**: Filter logs by time range and export to Downloads
 
 ### 📈 **Advanced Graphing**
-- **Adjustable Resolution**: 10min, 30min, 1hour, 1day, or auto-detect
+- **Adjustable Resolution**: 10min, 30min, 1hour, 1day, or auto-detect 
 - **Time-Range Aware**: Automatically adjusts graph scale
 - **Threshold Visualization**: Shows warning/critical temperature lines
 - **Real-Time Updates**: Live temperature history display
