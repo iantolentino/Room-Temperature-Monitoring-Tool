@@ -8,7 +8,7 @@ A professional, feature-rich temperature monitoring application with intelligent
 ![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey)
 
 ## ✨ Features
- 
+  
 ### 🎯 **Priority-Based Temperature Detection**
 - **Storage First**: Automatically detects storage device temperatures (HDD/SSD)
 - **GPU Fallback**: Uses GPU temperatures if no storage sensors are found
