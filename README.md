@@ -342,8 +342,8 @@ python -m pytest tests/
 ## 📞 Support
 
 - **Documentation**: This README and code comments
-- **Issues**: [GitHub Issues](https://github.com/yourusername/temperature-monitor/issues)
-- **Email**: [your-email@example.com](mailto:your-email@example.com)
+- **Issues**: [GitHub Issues](https://github.com/iantolentino/Room-Temperature-Monitorign-Tool/issues)
+- **Email**: [iantolentino0110@gmail.com](mailto:iantolentino0110@gmail.com)
 
 ## 🚀 Quick Commands Cheat Sheet
 
