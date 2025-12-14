@@ -16,7 +16,7 @@ A professional, feature-rich temperature monitoring application with intelligent
 - **Universal Detection**: Falls back to any available temperature sensor
 - **Hardware-Aware**: Adapts to your specific system configuration
 
-### 📊 **Intelligent Logging System**
+### 📊 **Intelligent Logging System** 
 - **Minute-Interval Logging**: Logs once per minute during normal operation
 - **Alert-Triggered Logging**: Immediate logging for critical/warning events
 - **1-Hour Cooldown**: Prevents log spam for repeated alerts
