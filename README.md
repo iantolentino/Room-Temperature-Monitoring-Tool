@@ -6,7 +6,7 @@ A professional, feature-rich temperature monitoring application with intelligent
 ![Python](https://img.shields.io/badge/Python-3.8+-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey)
-
+ 
 ## ✨ Features
   
 ### 🎯 **Priority-Based Temperature Detection**
