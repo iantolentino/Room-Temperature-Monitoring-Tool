@@ -262,7 +262,6 @@ class StorageTemperatureReader:
             temp = temp_sensors[0]['value']
             source_name = temp_sensors[0]['name']
             self.current_temp_source = f"Generic ({source_name})"
-            print(f"⚠️ Using generic sensor: {temp:.1f}°C")
             return temp
         
         self.current_temp_source = "No suitable sensors"
