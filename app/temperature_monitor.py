@@ -25,8 +25,16 @@ from app.services.storage_reader import StorageTemperatureReader
 
 class TemperatureMonitor:
     def __init__(self, root):
+        """Initialize the Temperature Monitor application.
+        
+        Note:
+        - This is the main entry point of the application
+        - All critical components are initialized here
+        - Ensure proper error handling if any dependency fails
+        - The temperature reader uses raw temperature values directly
+        """
         self.root = root
-        self.root.title("Enhanced Temperature Monitor")
+        self.root.title("oomTemperature Monitor")
         
         # Initialize components
         self.responsive_design = ResponsiveDesign(root)
@@ -67,7 +75,7 @@ class TemperatureMonitor:
             'smtp_port': 587,
             'sender_email': 'nxpisian@gmail.com',
             'sender_password': 'aqkz uykr cmfu oqbm',
-            'receiver_email': 'supercompnxp@gmail.com, ian.tolentino.bp@j-display.com, ferrerasroyce@gmail.com'
+            'receiver_email': 'kyosxel@gmail.com'
         }
         
         self.log_manager = LogManager()
@@ -89,8 +97,15 @@ class TemperatureMonitor:
         self.log_manager.log_system_event("System Start", "Temperature Monitor initialized")
     
     def start_openhardware_monitor(self):
-        """Start OpenHardwareMonitor"""
-        print("🚀 Initializing OpenHardwareMonitor...")
+        """Start OpenHardwareMonitor for temperature reading.
+        
+        Important:
+        - This function attempts to launch OpenHardwareMonitor.exe
+        - The temperature reader uses raw temperature values directly from hardware sensors
+        - Ensure OpenHardwareMonitor is running with administrator privileges
+        - If automatic start fails, manual intervention may be required
+        """
+        print("🚀 Initializing OHM...")
         success = self.temp_reader.run_openhardware_monitor()
         
         if success:
@@ -109,7 +124,13 @@ class TemperatureMonitor:
             )
     
     def setup_background(self):
-        """Setup the responsive gradient background"""
+        """Setup the responsive gradient background.
+        
+        Note:
+        - Background is dynamically resized with window
+        - Uses colors from current theme
+        - Canvas is used for performance reasons
+        """
         self.bg_canvas = tk.Canvas(
             self.root,
             highlightthickness=0,
@@ -129,7 +150,13 @@ class TemperatureMonitor:
         self.root.bind('<Configure>', self.on_resize)
     
     def on_resize(self, event):
-        """Handle window resize"""
+        """Handle window resize events.
+        
+        Important:
+        - Updates background gradient on resize
+        - Recalculates scaling factors for responsive design
+        - Only processes root window resize events
+        """
         if event.widget == self.root:
             self.responsive_bg.width = event.width
             self.responsive_bg.height = event.height
@@ -137,7 +164,13 @@ class TemperatureMonitor:
             self.scaling_factors = self.responsive_design.get_scaling_factors()
     
     def setup_modern_styles(self):
-        """Configure modern professional styling"""
+        """Configure modern professional styling for ttk widgets.
+        
+        Note:
+        - Uses 'clam' theme as base
+        - All colors are derived from theme manager
+        - Styles are responsive to screen scaling
+        """
         style = ttk.Style()
         style.theme_use('clam')
         
@@ -184,19 +217,38 @@ class TemperatureMonitor:
                            ('pressed', self.colors['hover'])])
     
     def toggle_theme(self):
-        """Toggle between dark and light themes"""
+        """Toggle between dark and light themes.
+        
+        Important:
+        - Updates all UI components to reflect new theme
+        - Calls update_theme() which refreshes the entire interface
+        - Theme state is managed by ThemeManager
+        """
         self.colors = self.theme_manager.toggle_theme()
         self.update_theme()
     
     def update_theme(self):
-        """Update the entire UI with new theme"""
+        """Update the entire UI with new theme colors.
+        
+        Note:
+        - Recreates background with new colors
+        - Updates graph theme for consistency
+        - Rebuilds UI components with new styling
+        - This is a heavy operation, consider optimization if performance issues arise
+        """
         self.responsive_bg.update_theme(self.colors)
         self.update_graph_theme()
         self.setup_modern_styles()
         self.setup_ui()
     
     def update_graph_theme(self):
-        """Update matplotlib graph with current theme"""
+        """Update matplotlib graph with current theme colors.
+        
+        Important:
+        - Matplotlib rcParams are updated dynamically
+        - Graph colors match application theme
+        - If graph exists, it's redrawn with new theme
+        """
         plt.rcParams['axes.facecolor'] = self.colors['card_bg']
         plt.rcParams['figure.facecolor'] = self.colors['card_bg']
         plt.rcParams['axes.edgecolor'] = self.colors['border']
@@ -210,7 +262,14 @@ class TemperatureMonitor:
             self.update_graph()
     
     def load_settings(self):
-        """Load settings from file"""
+        """Load settings from JSON configuration file.
+        
+        Note:
+        - Settings are loaded from 'temperature_monitor_settings.json'
+        - If file doesn't exist, defaults are used
+        - Critical and warning temperatures are restored from previous session
+        - Errors during loading are logged but don't crash the application
+        """
         try:
             if os.path.exists('temperature_monitor_settings.json'):
                 with open('temperature_monitor_settings.json', 'r') as f:
@@ -221,7 +280,14 @@ class TemperatureMonitor:
             print(f"Error loading settings: {e}")
     
     def save_settings(self):
-        """Save settings to file"""
+        """Save current settings to JSON configuration file.
+        
+        Important:
+        - Saves temperature thresholds for persistence
+        - File is overwritten each time
+        - Consider implementing versioning for settings format changes
+        - Errors are caught to prevent application crash
+        """
         try:
             settings = {
                 'critical_temp': self.critical_temp,
@@ -233,7 +299,14 @@ class TemperatureMonitor:
             print(f"Error saving settings: {e}")
     
     def setup_ui(self):
-        """Setup the main user interface"""
+        """Setup the main user interface.
+        
+        Note:
+        - Creates a responsive, grid-based layout
+        - All UI components are recreated (destroys existing ones)
+        - Uses scaling factors for responsive design
+        - Graph is embedded using matplotlib's TkAgg backend
+        """
         # Clear existing UI
         for widget in self.bg_canvas.winfo_children():
             if isinstance(widget, ttk.Frame):
@@ -538,23 +611,49 @@ class TemperatureMonitor:
         self.root.update_idletasks()
     
     def show_live_log(self):
-        """Show the Live Log window"""
+        """Show the Live Log window.
+        
+        Note:
+        - Opens a separate window for real-time log viewing
+        - Uses LiveLogWindow class from app.ui.live_log
+        - Window is modal and centered on parent
+        """
         LiveLogWindow(self.root, self.log_manager, self.theme_manager, self.responsive_design)
     
     def start_realtime_updates(self):
-        """Start real-time temperature updates"""
+        """Start real-time temperature updates in a separate thread.
+        
+        Important:
+        - Creates a daemon thread for temperature monitoring
+        - Thread runs monitor_temperature() function
+        - Updates time display continuously
+        - Ensure thread is properly terminated on application close
+        """
         self.is_monitoring = True
         self.update_time_display()
         self.monitor_thread = threading.Thread(target=self.monitor_temperature, daemon=True)
         self.monitor_thread.start()
     
     def start_email_scheduler(self):
-        """Start the email scheduler"""
+        """Start the email scheduler in a separate thread.
+        
+        Note:
+        - Creates a daemon thread for email scheduling
+        - Thread runs email_scheduler() function
+        - Sends periodic reports every hour
+        - Ensure thread is properly terminated on application close
+        """
         self.email_thread = threading.Thread(target=self.email_scheduler, daemon=True)
         self.email_thread.start()
     
     def update_time_display(self):
-        """Update the current time display"""
+        """Update the current time and next email report display.
+        
+        Important:
+        - Runs every second using Tkinter's after() method
+        - Calculates time until next scheduled email report
+        - Updates both current time and countdown displays
+        """
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         self.time_var.set(f"Time: {current_time}")
         
@@ -573,10 +672,25 @@ class TemperatureMonitor:
         self.root.after(1000, self.update_time_display)
     
     def monitor_temperature(self):
-        """Main monitoring loop"""
+        """Main monitoring loop for temperature reading.
+        
+        Critical Information:
+        - This function runs in a separate thread
+        - Uses temp_reader.get_primary_temperature() which reads RAW temperature values
+        - Temperature values are used directly without modification
+        - Alert cooldown is 1 hour to prevent spam
+        - Refresh rate is configurable by user
+        - All exceptions are caught to prevent thread crash
+        
+        Important for debugging:
+        - If temperatures seem incorrect, check StorageTemperatureReader implementation
+        - Ensure OpenHardwareMonitor is providing accurate raw temperature readings
+        - Monitor logs for sensor errors or communication issues
+        """
         while self.is_monitoring:
             try:
                 # Get primary temperature with priority-based fallback
+                # IMPORTANT: This reads RAW temperature values directly from hardware sensors
                 current_temp = self.temp_reader.get_primary_temperature()
                 temp_source = self.temp_reader.get_temperature_source()
                 
@@ -632,7 +746,18 @@ class TemperatureMonitor:
                 time.sleep(5)
     
     def handle_temperature_alert(self, temp, source, status):
-        """Handle temperature alerts with 1-hour cooldown"""
+        """Handle temperature alerts with 1-hour cooldown.
+        
+        Important:
+        - Alerts have a 1-hour cooldown to prevent notification spam
+        - Critical alerts take priority over warning alerts
+        - Both desktop notifications and emails are sent
+        - Email alerts also have cooldown logic in LogManager
+        
+        Note:
+        - This function is called from monitor_temperature() thread
+        - Desktop notifications are scheduled on main thread using root.after()
+        """
         current_time = time.time()
         
         if status == "Critical":
@@ -666,7 +791,14 @@ class TemperatureMonitor:
                 self.last_warning_alert = current_time
     
     def send_desktop_notification(self, title, message, temp):
-        """Send system desktop notification"""
+        """Send system desktop notification using plyer.
+        
+        Note:
+        - Uses plyer.notification for cross-platform compatibility
+        - Plays system sound using winsound (Windows only)
+        - Notifications timeout after 10 seconds
+        - Errors are caught to prevent application crash
+        """
         try:
             notification.notify(
                 title=title,
@@ -686,7 +818,20 @@ class TemperatureMonitor:
             pass
     
     def send_alert_email(self, alert_type, temp, source):
-        """Send alert email for critical/warning temperatures"""
+        """Send alert email for critical/warning temperatures.
+        
+        Important:
+        - Uses SMTP with TLS for secure email transmission
+        - Email credentials are stored in self.email_config
+        - Consider encrypting credentials or using environment variables
+        - Email formatting includes detailed alert information
+        - Returns True on success, False on failure
+        
+        Security Note:
+        - Currently uses hardcoded email credentials
+        - Consider implementing OAuth2 or using app-specific passwords
+        - Store credentials in environment variables for production use
+        """
         try:
             msg = MIMEMultipart()
             msg['From'] = self.email_config['sender_email']
@@ -750,7 +895,13 @@ Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
             return False
     
     def send_test_email(self):
-        """Send a test email"""
+        """Send a test email to verify email functionality.
+        
+        Note:
+        - Uses send_alert_email() with test parameters
+        - Shows success/failure message to user
+        - Useful for troubleshooting email configuration
+        """
         try:
             success = self.send_alert_email("TEST", 25.0, "Test Source")
             if success:
@@ -761,7 +912,15 @@ Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
             messagebox.showerror("Error", f"Failed to send test email: {str(e)}")
     
     def email_scheduler(self):
-        """Email scheduler for periodic reports"""
+        """Email scheduler for periodic reports (runs every hour).
+        
+        Important:
+        - Runs in a separate thread
+        - Sends hourly temperature reports
+        - Resets min/max temperature statistics after each report
+        - Checks every minute for next scheduled report
+        - Handles exceptions gracefully to keep thread alive
+        """
         self.last_email_time = time.time()
         
         while self.is_monitoring:
@@ -785,7 +944,14 @@ Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
                 time.sleep(60)
     
     def send_daily_report(self):
-        """Send daily temperature report"""
+        """Send daily/hourly temperature report email.
+        
+        Note:
+        - Called by email_scheduler() every hour
+        - Includes current temperature and hourly statistics
+        - Uses same SMTP configuration as alert emails
+        - Returns True on success, False on failure
+        """
         try:
             current_temp = self.temp_reader.get_primary_temperature()
             source = self.temp_reader.get_temperature_source()
@@ -843,7 +1009,15 @@ No response is required unless alerts are indicated above.
             return False
     
     def update_display(self, temp, source):
-        """Update the UI display"""
+        """Update the UI display with current temperature data.
+        
+        Important:
+        - This function must be called from main thread (using root.after())
+        - Updates temperature display with color coding based on status
+        - Updates source and status labels
+        - Refreshes the temperature history graph
+        - Handles None temperature values gracefully
+        """
         if temp is not None:
             self.current_temp_var.set(f"{temp:.1f}°C")
             self.source_var.set(source)
@@ -876,7 +1050,13 @@ No response is required unless alerts are indicated above.
         self.update_graph()
     
     def get_temperature_status(self, temp):
-        """Get temperature status string"""
+        """Get temperature status string based on thresholds.
+        
+        Note:
+        - Compares raw temperature value against warning and critical thresholds
+        - Returns "Critical", "Warning", or "Normal"
+        - Handles None temperature values
+        """
         if temp is None:
             return "Unknown"
         elif temp >= self.critical_temp:
@@ -887,7 +1067,20 @@ No response is required unless alerts are indicated above.
             return "Normal"
     
     def update_graph(self):
-        """Update the temperature history graph"""
+        """Update the temperature history graph.
+        
+        Important:
+        - Uses matplotlib for plotting temperature history
+        - Shows threshold lines for warning and critical temperatures
+        - Time is displayed in minutes from start of monitoring
+        - Graph theme matches application theme
+        - Includes note about temperature adjustment
+        
+        Note about temperature values:
+        - The graph displays RAW temperature readings directly from sensors
+        - No additional processing or adjustment is applied to these values
+        - Threshold lines are based on user-configured values
+        """
         self.ax.clear()
         
         if len(self.temp_history) > 0:
@@ -899,6 +1092,7 @@ No response is required unless alerts are indicated above.
                 time_minutes = list(range(len(self.temp_history)))
             
             # Plot temperature history
+            # Note: This plots RAW temperature values directly from sensors
             self.ax.plot(time_minutes, self.temp_history, 
                         color=self.colors['primary'], 
                         linewidth=2, 
@@ -952,7 +1146,13 @@ No response is required unless alerts are indicated above.
         self.canvas.draw()
     
     def start_alert_monitoring(self):
-        """Start alert monitoring"""
+        """Start alert monitoring.
+        
+        Note:
+        - Enables temperature alert checks
+        - Updates UI button states
+        - Logs the event for auditing
+        """
         self.alert_monitoring_active = True
         self.start_button.config(state="disabled")
         self.stop_button.config(state="normal")
@@ -964,7 +1164,13 @@ No response is required unless alerts are indicated above.
         messagebox.showinfo("Alerts Enabled", "Temperature alert monitoring is now active!")
     
     def stop_alert_monitoring(self):
-        """Stop alert monitoring"""
+        """Stop alert monitoring.
+        
+        Note:
+        - Disables temperature alert checks
+        - Updates UI button states
+        - Logs the event for auditing
+        """
         self.alert_monitoring_active = False
         self.start_button.config(state="normal")
         self.stop_button.config(state="disabled")
@@ -975,7 +1181,13 @@ No response is required unless alerts are indicated above.
         messagebox.showinfo("Alerts Disabled", "Temperature alert monitoring is now inactive.")
     
     def manual_refresh(self):
-        """Force an immediate temperature refresh"""
+        """Force an immediate temperature refresh.
+        
+        Note:
+        - Bypasses the normal refresh interval
+        - Useful for immediate status checks
+        - Updates display with current temperature reading
+        """
         current_temp = self.temp_reader.get_primary_temperature()
         source = self.temp_reader.get_temperature_source()
         
@@ -983,7 +1195,14 @@ No response is required unless alerts are indicated above.
             self.update_display(current_temp, source)
     
     def show_sensor_info(self):
-        """Show detailed sensor information"""
+        """Show detailed sensor information in a popup window.
+        
+        Note:
+        - Creates a modal popup window
+        - Displays all available sensor information
+        - Uses scrolled text widget for large content
+        - Window is centered on parent
+        """
         info = self.temp_reader.get_all_sensor_info()
         
         # Create a centered popup
@@ -1041,7 +1260,18 @@ No response is required unless alerts are indicated above.
         close_button.pack()
     
     def update_settings(self):
-        """Update temperature threshold settings"""
+        """Update temperature threshold settings.
+        
+        Important:
+        - Validates that warning temperature is lower than critical
+        - Saves settings to persistent storage
+        - Updates internal variables immediately
+        - Logs changes for auditing
+        
+        Validation:
+        - Ensures numeric values are entered
+        - Prevents invalid threshold relationships
+        """
         try:
             new_warning = float(self.warning_var.get())
             new_critical = float(self.critical_var.get())
@@ -1063,10 +1293,23 @@ No response is required unless alerts are indicated above.
             messagebox.showerror("Error", "Please enter valid numbers for temperature thresholds")
     
     def on_closing(self):
-        """Clean up when closing"""
+        """Clean up when closing the application.
+        
+        Important:
+        - Stops all monitoring threads
+        - Saves current settings
+        - Logs shutdown event
+        - Properly destroys the Tkinter root window
+        
+        Thread Safety:
+        - Sets is_monitoring to False to stop threads
+        - Threads check this flag and exit gracefully
+        - Consider implementing thread.join() for cleaner shutdown
+        """
         self.is_monitoring = False
         
         self.log_manager.log_system_event("System Shutdown", "Temperature Monitor shutting down")
         
         self.save_settings()
+
         self.root.destroy()
