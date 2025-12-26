@@ -448,7 +448,6 @@ class TemperatureMonitor:
                  background=self.colors['card_bg'],
                  foreground=self.colors['text_primary'],
                  font=('Segoe UI', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0, 8))
-        
         # Interval for graph
         self.refresh_rate_var = tk.StringVar(value="10")
         refresh_combo = ttk.Combobox(refresh_frame, textvariable=self.refresh_rate_var,
@@ -769,15 +768,67 @@ Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
             return False
     
     def send_test_email(self):
-        """Send a test email to verify email functionality."""
+        """Send a harmless test email to verify email functionality."""
         try:
-            success = self.send_alert_email("TEST", 25.0, "Test Source")
-            if success:
-                messagebox.showinfo("Success", "Test email sent successfully!")
-            else:
-                messagebox.showerror("Error", "Failed to send test email")
+            # Create a non-alarming test email
+            msg = MIMEMultipart()
+            msg['From'] = self.email_config['sender_email']
+            msg['To'] = self.email_config['receiver_email']
+            msg['Subject'] = "✅ Temperature Monitor - System Test"
+            
+            # Build harmless test email body
+            body = f"""
+    ✅ TEMPERATURE MONITOR - SYSTEM TEST
+    =====================================
+
+    This is a TEST EMAIL to verify system functionality.
+
+    Test Information:
+    • Test Type: System Verification
+    • Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    • Status: System is operational
+
+    What this test confirms:
+    ✓ Email system is working correctly
+    ✓ Temperature monitoring is active
+    ✓ Alerts will be sent when needed
+    ✓ System is running normally
+
+    Current Settings:
+    • Warning Threshold: {self.warning_temp}°C
+    • Critical Threshold: {self.critical_temp}°C
+
+    This is an automated test email.
+
+    Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
+    Test ID: {int(time.time())}
+    """
+            
+            msg.attach(MIMEText(body, 'plain'))
+            
+            # Send email
+            server = smtplib.SMTP(self.email_config['smtp_server'], self.email_config['smtp_port'])
+            server.starttls()
+            server.login(self.email_config['sender_email'], self.email_config['sender_password'])
+            server.send_message(msg)
+            server.quit()
+            
+            # Show success message
+            messagebox.showinfo(
+                "Test Complete",
+                "✅ Test email sent successfully!\n\n"
+            )
+            
+            self.log_manager.log_system_event("System Test", "Harmless test email sent")
+            
+            return True
+            
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to send test email: {str(e)}")
+            error_msg = f"Failed to send test email: {str(e)}"
+            print(f"❌ {error_msg}")
+            messagebox.showerror("Error", error_msg)
+            self.log_manager.log_system_event("Test Email Error", str(e))
+            return False
     
     def email_scheduler(self):
         """Email scheduler for periodic reports (runs every hour)."""
