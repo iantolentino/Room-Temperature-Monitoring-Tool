@@ -14,7 +14,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import json
 import os
-import traceback
 
 from app.ui.responsive_bg import ResponsiveGradientBackground
 from app.core.responsive import ResponsiveDesign
@@ -25,14 +24,7 @@ from app.services.storage_reader import StorageTemperatureReader
 
 class TemperatureMonitor:
     def __init__(self, root):
-        """Initialize the Temperature Monitor application.
-        
-        Note:
-        - This is the main entry point of the application
-        - All critical components are initialized here
-        - Ensure proper error handling if any dependency fails
-        - The temperature reader uses raw temperature values directly
-        """
+        """Initialize the Temperature Monitor application."""
         self.root = root
         self.root.title("Enhanced Temperature Monitor")
         
@@ -54,25 +46,24 @@ class TemperatureMonitor:
         self.last_critical_alert = 0
         self.warning_cooldown = 3600  # 1 hour cooldown for alerts
         
-        # Temperature thresholds - These use ADJUSTED temperatures
+        # Temperature thresholds (using adjusted temperatures)
         self.critical_temp = 30
         self.warning_temp = 25
         
-        # Temperature history - Stores ADJUSTED temperatures
+        # Temperature history (stores adjusted temperatures)
         self.temp_history = deque(maxlen=100)
         self.time_history = deque(maxlen=100)
         
-        # For statistics - Based on ADJUSTED temperatures
+        # For statistics (based on adjusted temperatures)
         self.min_temp = float('inf')
         self.max_temp = float('-inf')
         
-        # Temperature adjustment configuration
-        self.temp_adjustment = 0.0  # Default: no adjustment
-        self.adjustment_enabled = True  # Whether adjustment is applied
-        
-        # Track raw temperature for logging purposes
-        self.current_raw_temp = None
-        self.raw_temp_history = deque(maxlen=100)
+        # ============================================================================
+        # TEMPERATURE ADJUSTMENT CONFIGURATION
+        # ============================================================================
+        # This value is subtracted from raw sensor readings to match room temperature
+        # Example: If CPU shows 45°C but room is 22°C, set this to 23.0
+        self.temperature_adjustment = 20.0  # Adjust this value as needed
         
         # Initialize components
         self.temp_reader = StorageTemperatureReader()
@@ -103,177 +94,20 @@ class TemperatureMonitor:
         
         # Initial log
         self.log_manager.log_system_event("System Start", "Temperature Monitor initialized")
-    
-    # ============================================================================
-    # TEMPERATURE ADJUSTMENT FUNCTION - PLACED HERE FOR EASY DEVELOPER ACCESS
-    # ============================================================================
+        self.log_manager.log_system_event("Temperature Adjustment", 
+                                         f"Adjustment value: -{self.temperature_adjustment}°C")
     
     def apply_temperature_adjustment(self, raw_temp):
-        """
-        Apply user-defined temperature adjustment to raw sensor readings.
-        
-        IMPORTANT FOR DEVELOPERS:
-        - This function modifies raw temperature readings based on user preference
-        - The adjustment can be positive (increase) or negative (decrease)
-        - Adjusted temperatures are used for display, alerts, and logging
-        - Raw temperatures are preserved for reference when needed
-        
-        Parameters:
-            raw_temp (float): The raw temperature reading from hardware sensors
-        
-        Returns:
-            float: The adjusted temperature value, or None if input is None
-        
-        Usage:
-            - Call this function whenever you get a raw temperature reading
-            - The adjustment value is stored in self.temp_adjustment
-            - To disable adjustment, set self.adjustment_enabled = False
-        """
         if raw_temp is None:
             return None
-            
-        if not self.adjustment_enabled:
-            # Store raw temp for reference even when adjustment is disabled
-            self.current_raw_temp = raw_temp
-            return raw_temp
         
-        # Apply adjustment: raw_temp + adjustment_value
-        # Example: raw_temp=25°C, adjustment=-5°C → adjusted_temp=20°C
-        adjusted_temp = raw_temp + self.temp_adjustment
-        
-        # Store both raw and adjusted values for logging
-        self.current_raw_temp = raw_temp
-        self.raw_temp_history.append(raw_temp)
-        
-        # Log significant adjustment events (once per temperature change)
-        if hasattr(self, 'last_raw_temp_logged') and self.last_raw_temp_logged != raw_temp:
-            self.log_manager.log_system_event(
-                "Temperature Adjustment Applied",
-                f"Raw: {raw_temp:.1f}°C → Adjusted: {adjusted_temp:.1f}°C (Δ={self.temp_adjustment:+.1f}°C)"
-            )
-            self.last_raw_temp_logged = raw_temp
+        # Subtract the adjustment value from raw temperature
+        adjusted_temp = raw_temp - self.temperature_adjustment
         
         return adjusted_temp
     
-    def update_temperature_adjustment(self, adjustment_change=0.0):
-        """
-        Update the temperature adjustment value and refresh the display.
-        
-        Parameters:
-            adjustment_change (float): Amount to change the adjustment by
-                                    Positive values increase temperature
-                                    Negative values decrease temperature
-        
-        Returns:
-            float: The new adjustment value
-        """
-        # Update adjustment value with bounds checking
-        new_adjustment = self.temp_adjustment + adjustment_change
-        
-        # Optional: Limit adjustment range (e.g., -20°C to +20°C)
-        # Uncomment if you want to limit the adjustment range
-        # new_adjustment = max(-20.0, min(20.0, new_adjustment))
-        
-        # Only log if there's an actual change
-        if new_adjustment != self.temp_adjustment:
-            self.temp_adjustment = new_adjustment
-            
-            # Update UI if adjustment label exists
-            if hasattr(self, 'adjustment_label'):
-                self.adjustment_label.config(
-                    text=f"Adjustment: {self.temp_adjustment:+.1f}°C",
-                    foreground=self.colors['primary'] if self.temp_adjustment != 0 else self.colors['text_secondary']
-                )
-            
-            # Log the adjustment change
-            direction = "increased" if adjustment_change > 0 else "decreased"
-            self.log_manager.log_system_event(
-                "Temperature Adjustment Changed",
-                f"Adjustment {direction} by {abs(adjustment_change):.1f}°C. New adjustment: {self.temp_adjustment:+.1f}°C"
-            )
-            
-            # Save settings to persist adjustment
-            self.save_settings()
-            
-            # Force immediate refresh to show adjusted temperature
-            self.manual_refresh()
-        
-        return self.temp_adjustment
-    
-    def toggle_adjustment_enabled(self):
-        """
-        Toggle temperature adjustment on/off.
-        
-        Returns:
-            bool: New state (True=enabled, False=disabled)
-        """
-        self.adjustment_enabled = not self.adjustment_enabled
-        
-        # Update UI if adjustment toggle button exists
-        if hasattr(self, 'adjustment_toggle_btn'):
-            state_text = "ON" if self.adjustment_enabled else "OFF"
-            color = self.colors['success'] if self.adjustment_enabled else self.colors['error']
-            self.adjustment_toggle_btn.config(
-                text=f"Adj: {state_text}",
-                style='Primary.TButton' if self.adjustment_enabled else 'Secondary.TButton'
-            )
-        
-        # Log state change
-        state = "ENABLED" if self.adjustment_enabled else "DISABLED"
-        self.log_manager.log_system_event(
-            "Temperature Adjustment",
-            f"{state}. Adjustment value: {self.temp_adjustment:+.1f}°C"
-        )
-        
-        # Save settings
-        self.save_settings()
-        
-        # Force refresh to show current state
-        self.manual_refresh()
-        
-        return self.adjustment_enabled
-    
-    def reset_temperature_adjustment(self):
-        """
-        Reset temperature adjustment to zero.
-        
-        Returns:
-            float: The reset adjustment value (always 0.0)
-        """
-        if self.temp_adjustment != 0:
-            old_adjustment = self.temp_adjustment
-            self.temp_adjustment = 0.0
-            
-            # Update UI
-            if hasattr(self, 'adjustment_label'):
-                self.adjustment_label.config(
-                    text=f"Adjustment: {self.temp_adjustment:+.1f}°C",
-                    foreground=self.colors['text_secondary']
-                )
-            
-            # Log the reset
-            self.log_manager.log_system_event(
-                "Temperature Adjustment Reset",
-                f"Reset from {old_adjustment:+.1f}°C to {self.temp_adjustment:+.1f}°C"
-            )
-            
-            # Save settings
-            self.save_settings()
-            
-            # Force refresh
-            self.manual_refresh()
-        
-        return self.temp_adjustment
-    
     def start_openhardware_monitor(self):
-        """Start OpenHardwareMonitor for temperature reading.
-        
-        Important:
-        - This function attempts to launch OpenHardwareMonitor.exe
-        - The temperature reader uses raw temperature values directly from hardware sensors
-        - Ensure OpenHardwareMonitor is running with administrator privileges
-        - If automatic start fails, manual intervention may be required
-        """
+        """Start OpenHardwareMonitor for temperature reading."""
         print("🚀 Initializing OHM...")
         success = self.temp_reader.run_openhardware_monitor()
         
@@ -293,13 +127,7 @@ class TemperatureMonitor:
             )
     
     def setup_background(self):
-        """Setup the responsive gradient background.
-        
-        Note:
-        - Background is dynamically resized with window
-        - Uses colors from current theme
-        - Canvas is used for performance reasons
-        """
+        """Setup the responsive gradient background."""
         self.bg_canvas = tk.Canvas(
             self.root,
             highlightthickness=0,
@@ -319,13 +147,7 @@ class TemperatureMonitor:
         self.root.bind('<Configure>', self.on_resize)
     
     def on_resize(self, event):
-        """Handle window resize events.
-        
-        Important:
-        - Updates background gradient on resize
-        - Recalculates scaling factors for responsive design
-        - Only processes root window resize events
-        """
+        """Handle window resize events."""
         if event.widget == self.root:
             self.responsive_bg.width = event.width
             self.responsive_bg.height = event.height
@@ -333,13 +155,7 @@ class TemperatureMonitor:
             self.scaling_factors = self.responsive_design.get_scaling_factors()
     
     def setup_modern_styles(self):
-        """Configure modern professional styling for ttk widgets.
-        
-        Note:
-        - Uses 'clam' theme as base
-        - All colors are derived from theme manager
-        - Styles are responsive to screen scaling
-        """
+        """Configure modern professional styling for ttk widgets."""
         style = ttk.Style()
         style.theme_use('clam')
         
@@ -386,38 +202,19 @@ class TemperatureMonitor:
                            ('pressed', self.colors['hover'])])
     
     def toggle_theme(self):
-        """Toggle between dark and light themes.
-        
-        Important:
-        - Updates all UI components to reflect new theme
-        - Calls update_theme() which refreshes the entire interface
-        - Theme state is managed by ThemeManager
-        """
+        """Toggle between dark and light themes."""
         self.colors = self.theme_manager.toggle_theme()
         self.update_theme()
     
     def update_theme(self):
-        """Update the entire UI with new theme colors.
-        
-        Note:
-        - Recreates background with new colors
-        - Updates graph theme for consistency
-        - Rebuilds UI components with new styling
-        - This is a heavy operation, consider optimization if performance issues arise
-        """
+        """Update the entire UI with new theme colors."""
         self.responsive_bg.update_theme(self.colors)
         self.update_graph_theme()
         self.setup_modern_styles()
         self.setup_ui()
     
     def update_graph_theme(self):
-        """Update matplotlib graph with current theme colors.
-        
-        Important:
-        - Matplotlib rcParams are updated dynamically
-        - Graph colors match application theme
-        - If graph exists, it's redrawn with new theme
-        """
+        """Update matplotlib graph with current theme colors."""
         plt.rcParams['axes.facecolor'] = self.colors['card_bg']
         plt.rcParams['figure.facecolor'] = self.colors['card_bg']
         plt.rcParams['axes.edgecolor'] = self.colors['border']
@@ -431,41 +228,25 @@ class TemperatureMonitor:
             self.update_graph()
     
     def load_settings(self):
-        """Load settings from JSON configuration file.
-        
-        Note:
-        - Settings are loaded from 'temperature_monitor_settings.json'
-        - If file doesn't exist, defaults are used
-        - Critical and warning temperatures are restored from previous session
-        - Errors during loading are logged but don't crash the application
-        """
+        """Load settings from JSON configuration file."""
         try:
             if os.path.exists('temperature_monitor_settings.json'):
                 with open('temperature_monitor_settings.json', 'r') as f:
                     settings = json.load(f)
                     self.critical_temp = settings.get('critical_temp', 30)
                     self.warning_temp = settings.get('warning_temp', 25)
-                    # Load temperature adjustment settings if they exist
-                    self.temp_adjustment = settings.get('temp_adjustment', 0.0)
-                    self.adjustment_enabled = settings.get('adjustment_enabled', True)
+                    # Load temperature adjustment if it exists
+                    self.temperature_adjustment = settings.get('temperature_adjustment', 23.0)
         except Exception as e:
             print(f"Error loading settings: {e}")
     
     def save_settings(self):
-        """Save current settings to JSON configuration file.
-        
-        Important:
-        - Saves temperature thresholds for persistence
-        - File is overwritten each time
-        - Consider implementing versioning for settings format changes
-        - Errors are caught to prevent application crash
-        """
+        """Save current settings to JSON configuration file."""
         try:
             settings = {
                 'critical_temp': self.critical_temp,
                 'warning_temp': self.warning_temp,
-                'temp_adjustment': self.temp_adjustment,
-                'adjustment_enabled': self.adjustment_enabled
+                'temperature_adjustment': self.temperature_adjustment
             }
             with open('temperature_monitor_settings.json', 'w') as f:
                 json.dump(settings, f, indent=4)
@@ -473,14 +254,7 @@ class TemperatureMonitor:
             print(f"Error saving settings: {e}")
     
     def setup_ui(self):
-        """Setup the main user interface.
-        
-        Note:
-        - Creates a responsive, grid-based layout
-        - All UI components are recreated (destroys existing ones)
-        - Uses scaling factors for responsive design
-        - Graph is embedded using matplotlib's TkAgg backend
-        """
+        """Setup the main user interface."""
         # Clear existing UI
         for widget in self.bg_canvas.winfo_children():
             if isinstance(widget, ttk.Frame):
@@ -623,10 +397,6 @@ class TemperatureMonitor:
         right_column.grid(row=0, column=1, sticky='nsew', padx=(base_padding//2, 0))
         right_column.columnconfigure(0, weight=1)
         
-        # ============================================================================
-        # TEMPERATURE ADJUSTMENT CONTROLS SECTION - ADDED BELOW ALERT CONTROLS
-        # ============================================================================
-        
         # Alert Controls Section
         alert_frame = ttk.LabelFrame(right_column, text="ALERT CONTROLS", 
                                     style='Card.TLabelframe', padding="15")
@@ -665,98 +435,10 @@ class TemperatureMonitor:
                                      style='Secondary.TButton')
         self.stop_button.grid(row=0, column=1, sticky='ew', padx=(5, 0))
         
-        # Temperature Adjustment Section
-        adjustment_frame = ttk.LabelFrame(right_column, text="TEMPERATURE ADJUSTMENT", 
-                                         style='Card.TLabelframe', padding="15")
-        adjustment_frame.grid(row=1, column=0, sticky='ew', pady=(0, base_padding))
-        
-        # Adjustment value display
-        adj_display_frame = ttk.Frame(adjustment_frame, style='Card.TFrame')
-        adj_display_frame.grid(row=0, column=0, sticky='ew', pady=(0, 10))
-        
-        self.adjustment_label = ttk.Label(
-            adj_display_frame,
-            text=f"Adjustment: {self.temp_adjustment:+.1f}°C",
-            background=self.colors['card_bg'],
-            foreground=self.colors['primary'] if self.temp_adjustment != 0 else self.colors['text_secondary'],
-            font=('Segoe UI', 10, 'bold')
-        )
-        self.adjustment_label.pack(anchor=tk.CENTER)
-        
-        # Adjustment buttons
-        adj_buttons_frame = ttk.Frame(adjustment_frame, style='Card.TFrame')
-        adj_buttons_frame.grid(row=1, column=0, sticky='ew', pady=(0, 10))
-        adj_buttons_frame.columnconfigure(0, weight=1)
-        adj_buttons_frame.columnconfigure(1, weight=1)
-        adj_buttons_frame.columnconfigure(2, weight=1)
-        
-        # Decrease temperature button (-5°C)
-        decrease_5_btn = ttk.Button(
-            adj_buttons_frame,
-            text="-5°C",
-            command=lambda: self.update_temperature_adjustment(-5.0),
-            style='Secondary.TButton'
-        )
-        decrease_5_btn.grid(row=0, column=0, sticky='ew', padx=(0, 2))
-        
-        # Decrease temperature button (-1°C)
-        decrease_1_btn = ttk.Button(
-            adj_buttons_frame,
-            text="-1°C",
-            command=lambda: self.update_temperature_adjustment(-1.0),
-            style='Secondary.TButton'
-        )
-        decrease_1_btn.grid(row=0, column=1, sticky='ew', padx=1)
-        
-        # Reset adjustment button
-        reset_btn = ttk.Button(
-            adj_buttons_frame,
-            text="Reset",
-            command=self.reset_temperature_adjustment,
-            style='Secondary.TButton'
-        )
-        reset_btn.grid(row=0, column=2, sticky='ew', padx=(2, 0))
-        
-        # Increase temperature buttons
-        increase_buttons_frame = ttk.Frame(adjustment_frame, style='Card.TFrame')
-        increase_buttons_frame.grid(row=2, column=0, sticky='ew')
-        increase_buttons_frame.columnconfigure(0, weight=1)
-        increase_buttons_frame.columnconfigure(1, weight=1)
-        
-        # Increase temperature button (+1°C)
-        increase_1_btn = ttk.Button(
-            increase_buttons_frame,
-            text="+1°C",
-            command=lambda: self.update_temperature_adjustment(1.0),
-            style='Secondary.TButton'
-        )
-        increase_1_btn.grid(row=0, column=0, sticky='ew', padx=(0, 2))
-        
-        # Increase temperature button (+5°C)
-        increase_5_btn = ttk.Button(
-            increase_buttons_frame,
-            text="+5°C",
-            command=lambda: self.update_temperature_adjustment(5.0),
-            style='Secondary.TButton'
-        )
-        increase_5_btn.grid(row=0, column=1, sticky='ew', padx=(2, 0))
-        
-        # Toggle adjustment button
-        toggle_frame = ttk.Frame(adjustment_frame, style='Card.TFrame')
-        toggle_frame.grid(row=3, column=0, sticky='ew', pady=(10, 0))
-        
-        self.adjustment_toggle_btn = ttk.Button(
-            toggle_frame,
-            text=f"Adj: {'ON' if self.adjustment_enabled else 'OFF'}",
-            command=self.toggle_adjustment_enabled,
-            style='Primary.TButton' if self.adjustment_enabled else 'Secondary.TButton'
-        )
-        self.adjustment_toggle_btn.pack(fill=tk.X)
-        
         # Monitoring Controls
         monitor_frame = ttk.LabelFrame(right_column, text="MONITORING CONTROLS", 
                                       style='Card.TLabelframe', padding="15")
-        monitor_frame.grid(row=2, column=0, sticky='ew', pady=(0, base_padding))
+        monitor_frame.grid(row=1, column=0, sticky='ew', pady=(0, base_padding))
         
         # Refresh rate control
         refresh_frame = ttk.Frame(monitor_frame, style='Card.TFrame')
@@ -767,14 +449,15 @@ class TemperatureMonitor:
                  foreground=self.colors['text_primary'],
                  font=('Segoe UI', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0, 8))
         
-        self.refresh_rate_var = tk.StringVar(value="2")
+        # Interval for graph
+        self.refresh_rate_var = tk.StringVar(value="10")
         refresh_combo = ttk.Combobox(refresh_frame, textvariable=self.refresh_rate_var,
-                                    values=["1", "2", "5", "10"], 
+                                    values=["10", "30", "60", "300"], 
                                     width=12,
                                     state="readonly")
         refresh_combo.grid(row=1, column=0, sticky='ew', pady=(0, 10))
         
-        refresh_button = ttk.Button(refresh_frame, text="Refresh Now", 
+        refresh_button = ttk.Button(refresh_frame, text="Update", 
                                    command=self.manual_refresh, 
                                    style='Primary.TButton')
         refresh_button.grid(row=2, column=0, sticky='ew')
@@ -799,9 +482,9 @@ class TemperatureMonitor:
         email_button.grid(row=0, column=1, sticky='ew', padx=(5, 0))
         
         # Temperature Settings
-        settings_frame = ttk.LabelFrame(right_column, text="TEMPERATURE THRESHOLDS", 
+        settings_frame = ttk.LabelFrame(right_column, text="TEMPERATURE SETTINGS", 
                                        style='Card.TLabelframe', padding="15")
-        settings_frame.grid(row=3, column=0, sticky='ew', pady=(0, base_padding))
+        settings_frame.grid(row=2, column=0, sticky='ew', pady=(0, base_padding))
         
         # Warning temperature
         warning_frame = ttk.Frame(settings_frame, style='Card.TFrame')
@@ -877,49 +560,23 @@ class TemperatureMonitor:
         self.root.update_idletasks()
     
     def show_live_log(self):
-        """Show the Live Log window.
-        
-        Note:
-        - Opens a separate window for real-time log viewing
-        - Uses LiveLogWindow class from app.ui.live_log
-        - Window is modal and centered on parent
-        """
+        """Show the Live Log window."""
         LiveLogWindow(self.root, self.log_manager, self.theme_manager, self.responsive_design)
     
     def start_realtime_updates(self):
-        """Start real-time temperature updates in a separate thread.
-        
-        Important:
-        - Creates a daemon thread for temperature monitoring
-        - Thread runs monitor_temperature() function
-        - Updates time display continuously
-        - Ensure thread is properly terminated on application close
-        """
+        """Start real-time temperature updates in a separate thread."""
         self.is_monitoring = True
         self.update_time_display()
         self.monitor_thread = threading.Thread(target=self.monitor_temperature, daemon=True)
         self.monitor_thread.start()
     
     def start_email_scheduler(self):
-        """Start the email scheduler in a separate thread.
-        
-        Note:
-        - Creates a daemon thread for email scheduling
-        - Thread runs email_scheduler() function
-        - Sends periodic reports every hour
-        - Ensure thread is properly terminated on application close
-        """
+        """Start the email scheduler in a separate thread."""
         self.email_thread = threading.Thread(target=self.email_scheduler, daemon=True)
         self.email_thread.start()
     
     def update_time_display(self):
-        """Update the current time and next email report display.
-        
-        Important:
-        - Runs every second using Tkinter's after() method
-        - Calculates time until next scheduled email report
-        - Updates both current time and countdown displays
-        """
+        """Update the current time and next email report display."""
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         self.time_var.set(f"Time: {current_time}")
         
@@ -938,68 +595,52 @@ class TemperatureMonitor:
         self.root.after(1000, self.update_time_display)
     
     def monitor_temperature(self):
-        """Main monitoring loop for temperature reading.
-        
-        CRITICAL UPDATE: Now uses apply_temperature_adjustment() function
-        - Raw temperatures from sensors are adjusted before display
-        - Adjusted temperatures are used for alerts and logging
-        - Raw temperatures are preserved in self.current_raw_temp
-        
-        Important for debugging:
-        - Check self.current_raw_temp for unmodified sensor readings
-        - All displayed values are adjusted by self.temp_adjustment
+        """
+        Main monitoring loop for temperature reading.
         """
         while self.is_monitoring:
             try:
-                # Get primary temperature with priority-based fallback
-                # IMPORTANT: This reads RAW temperature values directly from hardware sensors
+                # Get raw temperature from hardware sensors
                 raw_temp = self.temp_reader.get_primary_temperature()
                 temp_source = self.temp_reader.get_temperature_source()
                 
                 if raw_temp is not None:
                     # APPLY TEMPERATURE ADJUSTMENT HERE
-                    # This converts raw sensor reading to adjusted display value
+                    # This converts raw CPU temperature to room-equivalent temperature
                     adjusted_temp = self.apply_temperature_adjustment(raw_temp)
                     
-                    # Update statistics based on ADJUSTED temperature
+                    # Update statistics based on adjusted temperature
                     if adjusted_temp < self.min_temp:
                         self.min_temp = adjusted_temp
                     if adjusted_temp > self.max_temp:
                         self.max_temp = adjusted_temp
                     
-                    # Update display with ADJUSTED temperature
+                    # Update display with adjusted temperature
                     self.root.after(0, self.update_display, adjusted_temp, temp_source)
                     
-                    # Update history with ADJUSTED temperature
+                    # Update history with adjusted temperature
                     self.temp_history.append(adjusted_temp)
                     self.time_history.append(time.time())
                     
-                    # Intelligent logging - include both raw and adjusted temperatures
+                    # Log adjusted temperature
                     status = self.get_temperature_status(adjusted_temp)
                     is_alert = status in ["Warning", "Critical"]
                     
-                    # Enhanced logging with both raw and adjusted temperatures
                     self.log_manager.log_temperature(
                         temp=adjusted_temp,
                         source=temp_source,
                         status=status,
-                        is_alert=is_alert,
-                        raw_temp=raw_temp,
-                        adjustment=self.temp_adjustment if self.adjustment_enabled else 0.0
+                        is_alert=is_alert
                     )
                     
-                    # Handle alerts with 1-hour cooldown using ADJUSTED temperature
+                    # Handle alerts with adjusted temperature
                     if self.alert_monitoring_active:
                         self.handle_temperature_alert(adjusted_temp, temp_source, status)
                 
                 else:
                     # No temperature data
                     self.root.after(0, self.update_display, None, "No sensor data")
-                    
-                    self.log_manager.log_system_event(
-                        "Sensor Error",
-                        "No temperature data available"
-                    )
+                    self.log_manager.log_system_event("Sensor Error", "No temperature data available")
                 
                 # Get refresh rate
                 try:
@@ -1015,55 +656,37 @@ class TemperatureMonitor:
                 time.sleep(5)
     
     def handle_temperature_alert(self, adjusted_temp, source, status):
-        """Handle temperature alerts with 1-hour cooldown.
-        
-        Important:
-        - Alerts have a 1-hour cooldown to prevent notification spam
-        - Uses ADJUSTED temperature values for alert checking
-        - Both desktop notifications and emails are sent
-        - Email alerts also have cooldown logic in LogManager
-        """
+        """Handle temperature alerts with 1-hour cooldown."""
         current_time = time.time()
         
         if status == "Critical":
-            # Check 1-hour cooldown
             if current_time - self.last_critical_alert > self.warning_cooldown:
-                # Send desktop notification with ADJUSTED temperature
+                # Send desktop notification
                 self.root.after(0, self.send_desktop_notification,
                               "🔥 CRITICAL TEMPERATURE ALERT!",
                               f"Temperature: {adjusted_temp:.1f}°C\nSource: {source}",
                               adjusted_temp)
                 
-                # Check if we should send email (1-hour cooldown)
                 if self.log_manager.should_send_alert_email("CRITICAL", adjusted_temp):
                     self.send_alert_email("CRITICAL", adjusted_temp, source)
                 
                 self.last_critical_alert = current_time
         
         elif status == "Warning":
-            # Check 1-hour cooldown
             if current_time - self.last_warning_alert > self.warning_cooldown:
-                # Send desktop notification with ADJUSTED temperature
+                # Send desktop notification
                 self.root.after(0, self.send_desktop_notification,
                               "⚠️ HIGH TEMPERATURE WARNING",
                               f"Temperature: {adjusted_temp:.1f}°C\nSource: {source}",
                               adjusted_temp)
                 
-                # Check if we should send email (1-hour cooldown)
                 if self.log_manager.should_send_alert_email("WARNING", adjusted_temp):
                     self.send_alert_email("WARNING", adjusted_temp, source)
                 
                 self.last_warning_alert = current_time
     
     def send_desktop_notification(self, title, message, temp):
-        """Send system desktop notification using plyer.
-        
-        Note:
-        - Uses plyer.notification for cross-platform compatibility
-        - Plays system sound using winsound (Windows only)
-        - Notifications timeout after 10 seconds
-        - Errors are caught to prevent application crash
-        """
+        """Send system desktop notification using plyer."""
         try:
             notification.notify(
                 title=title,
@@ -1083,12 +706,7 @@ class TemperatureMonitor:
             pass
     
     def send_alert_email(self, alert_type, adjusted_temp, source):
-        """Send alert email for critical/warning temperatures.
-        
-        IMPORTANT: Emails now include information about temperature adjustment
-        - Shows both the displayed (adjusted) temperature
-        - Mentions if temperature adjustment is being applied
-        """
+        """Send alert email for critical/warning temperatures."""
         try:
             msg = MIMEMultipart()
             msg['From'] = self.email_config['sender_email']
@@ -1103,27 +721,16 @@ class TemperatureMonitor:
                 color = "🟡"
                 urgency = "Monitor Closely"
             
-            # Include adjustment information in email
-            adjustment_info = ""
-            if self.adjustment_enabled and self.temp_adjustment != 0:
-                raw_temp_info = ""
-                if self.current_raw_temp is not None:
-                    raw_temp_info = f"\nRaw Sensor Reading: {self.current_raw_temp:.1f}°C"
-                adjustment_info = f"""{raw_temp_info}
-Temperature Adjustment: {self.temp_adjustment:+.1f}°C is being applied
-Displayed Temperature: {adjusted_temp:.1f}°C (Adjusted)
-"""
-            
             # Build email body
             body = f"""
 {color} TEMPERATURE ALERT
 =====================================
 
 Alert Type: {alert_type} {color}
-Displayed Temperature: {adjusted_temp:.1f}°C
-Source: {source}
+Temperature: {adjusted_temp:.1f}°C
+Source: SERVER ROOM
 Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-{adjustment_info}
+
 Urgency: {urgency}
 
 Current Thresholds:
@@ -1152,8 +759,7 @@ Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
             server.quit()
             
             print(f"✅ {alert_type} alert email sent")
-            
-            self.log_manager.log_system_event(f"{alert_type} Alert Email", f"Sent for {adjusted_temp:.1f}°C (adjusted)")
+            self.log_manager.log_system_event(f"{alert_type} Alert Email", f"Sent for {adjusted_temp:.1f}°C")
             
             return True
         
@@ -1163,13 +769,7 @@ Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
             return False
     
     def send_test_email(self):
-        """Send a test email to verify email functionality.
-        
-        Note:
-        - Uses send_alert_email() with test parameters
-        - Shows success/failure message to user
-        - Useful for troubleshooting email configuration
-        """
+        """Send a test email to verify email functionality."""
         try:
             success = self.send_alert_email("TEST", 25.0, "Test Source")
             if success:
@@ -1180,15 +780,7 @@ Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
             messagebox.showerror("Error", f"Failed to send test email: {str(e)}")
     
     def email_scheduler(self):
-        """Email scheduler for periodic reports (runs every hour).
-        
-        Important:
-        - Runs in a separate thread
-        - Sends hourly temperature reports
-        - Resets min/max temperature statistics after each report
-        - Checks every minute for next scheduled report
-        - Handles exceptions gracefully to keep thread alive
-        """
+        """Email scheduler for periodic reports (runs every hour)."""
         self.last_email_time = time.time()
         
         while self.is_monitoring:
@@ -1212,14 +804,7 @@ Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
                 time.sleep(60)
     
     def send_daily_report(self):
-        """Send daily/hourly temperature report email.
-        
-        Note:
-        - Called by email_scheduler() every hour
-        - Includes current temperature and hourly statistics
-        - Uses same SMTP configuration as alert emails
-        - Returns True on success, False on failure
-        """
+        """Send daily/hourly temperature report email."""
         try:
             # Get raw temperature and apply adjustment
             raw_temp = self.temp_reader.get_primary_temperature()
@@ -1236,38 +821,41 @@ Device: {os.environ.get('COMPUTERNAME', 'Unknown Device')}
             msg['To'] = self.email_config['receiver_email']
             msg['Subject'] = f"Temperature Report - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}"
             
-            # Include adjustment information in report
-            adjustment_section = ""
-            if self.adjustment_enabled and self.temp_adjustment != 0:
-                adjustment_section = f"""
-Adjustment Information:
-• Temperature Adjustment: {self.temp_adjustment:+.1f}°C
-• Raw Sensor Reading: {raw_temp:.1f}°C
-• Displayed Temperature: {adjusted_temp:.1f}°C (Adjusted)
-"""
-            
             # Build email body
-            body = f"""
-Temperature Monitoring Report
-=====================================
+            body = f"""        
+            **TEMPERATURE MONITORING REPORT**
+**Nanox Philippines Inc. – Server Room**
 
-Timestamp: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+==================================================
 
-Current Status:
-• Displayed Temperature: {adjusted_temp:.1f}°C
-• Temperature Source: {source}
-• Status: {self.get_temperature_status(adjusted_temp)}
-{adjustment_section}
-Hourly Statistics:
+**TIMESTAMP**
+**{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**
+
+==================================================
+
+**CURRENT STATUS**
+
+• **Temperature:** {adjusted_temp:.1f}°C *(Adjusted for room temperature)*
+• **Source:** {source} – SERVER ROOM
+• **Status:** **{self.get_temperature_status(adjusted_temp)}**
+
+==================================================
+
+**TEMPERATURE SUMMARY (PAST 1 HOUR)**
+
 • Minimum Temperature: {self.min_temp if self.min_temp != float('inf') else 'N/A':.1f}°C
 • Maximum Temperature: {self.max_temp if self.max_temp != float('-inf') else 'N/A':.1f}°C
 
-Threshold Settings:
-• Warning Threshold: {self.warning_temp}°C
-• Critical Threshold: {self.critical_temp}°C
+---
 
-This is an automated report from the Temperature Monitoring System.
-No response is required unless alerts are indicated above.
+This is an **automated system-generated report** from the Temperature Monitoring System.
+
+No action is required unless a warning or critical status is indicated above.
+
+---
+
+**IT Infrastructure Monitoring**
+Nanox Philippines Inc.
 """
             
             msg.attach(MIMEText(body, 'plain'))
@@ -1280,7 +868,6 @@ No response is required unless alerts are indicated above.
             server.quit()
             
             print(f"✅ Daily report sent at {datetime.datetime.now().strftime('%H:%M:%S')}")
-            
             self.log_manager.log_system_event("Daily Report", "Email report sent")
             
             return True
@@ -1291,15 +878,7 @@ No response is required unless alerts are indicated above.
             return False
     
     def update_display(self, adjusted_temp, source):
-        """Update the UI display with current temperature data.
-        
-        Important:
-        - This function must be called from main thread (using root.after())
-        - Updates temperature display with color coding based on status
-        - Updates source and status labels
-        - Refreshes the temperature history graph
-        - Handles None temperature values gracefully
-        """
+        """Update the UI display with adjusted temperature data."""
         if adjusted_temp is not None:
             self.current_temp_var.set(f"{adjusted_temp:.1f}°C")
             self.source_var.set(source)
@@ -1332,13 +911,7 @@ No response is required unless alerts are indicated above.
         self.update_graph()
     
     def get_temperature_status(self, adjusted_temp):
-        """Get temperature status string based on thresholds.
-        
-        Note:
-        - Compares ADJUSTED temperature value against warning and critical thresholds
-        - Returns "Critical", "Warning", or "Normal"
-        - Handles None temperature values
-        """
+        """Get temperature status string based on thresholds."""
         if adjusted_temp is None:
             return "Unknown"
         elif adjusted_temp >= self.critical_temp:
@@ -1349,18 +922,7 @@ No response is required unless alerts are indicated above.
             return "Normal"
     
     def update_graph(self):
-        """Update the temperature history graph.
-        
-        Important:
-        - Uses matplotlib for plotting temperature history
-        - Shows threshold lines for warning and critical temperatures
-        - Time is displayed in minutes from start of monitoring
-        - Graph theme matches application theme
-        
-        Note about temperature values:
-        - The graph displays ADJUSTED temperature readings
-        - Threshold lines are based on user-configured values
-        """
+        """Update the temperature history graph with adjusted temperatures."""
         self.ax.clear()
         
         if len(self.temp_history) > 0:
@@ -1371,7 +933,7 @@ No response is required unless alerts are indicated above.
             else:
                 time_minutes = list(range(len(self.temp_history)))
             
-            # Plot ADJUSTED temperature history
+            # Plot adjusted temperature history
             self.ax.plot(time_minutes, self.temp_history, 
                         color=self.colors['primary'], 
                         linewidth=2, 
@@ -1389,16 +951,6 @@ No response is required unless alerts are indicated above.
             self.ax.set_xlabel('Time (Minutes)', fontsize=10, fontweight='bold')
             self.ax.set_ylabel('Temperature (°C)', fontsize=10, fontweight='bold')
             self.ax.set_title('Temperature History', fontsize=12, fontweight='bold', pad=20)
-            
-            # Add adjustment info to legend if adjustment is active
-            legend_labels = ["Temperature (°C)"]
-            if self.adjustment_enabled and self.temp_adjustment != 0:
-                adjustment_label = f"Adj: {self.temp_adjustment:+.1f}°C"
-                # Add a dummy line for the adjustment legend entry
-                self.ax.plot([], [], color='gray', linestyle=':', label=adjustment_label)
-                legend_labels.append(adjustment_label)
-            
-            legend_labels.extend([f'Warning ({self.warning_temp}°C)', f'Critical ({self.critical_temp}°C)'])
             
             # Legend
             self.ax.legend(fontsize=9, framealpha=0.9)
@@ -1424,12 +976,8 @@ No response is required unless alerts are indicated above.
             self.ax.set_xticks([])
             self.ax.set_yticks([])
         
-        # Update note about temperature adjustment
-        if self.adjustment_enabled and self.temp_adjustment != 0:
-            note_text = f"Note: Temperatures adjusted by {self.temp_adjustment:+.1f}°C"
-        else:
-            note_text = "Note: Temperatures are shown as reported by sensors"
-        
+        # Add note about temperature adjustment
+        note_text = f"Note: Temperatures adjusted by -{self.temperature_adjustment}°C to match room temperature"
         self.ax.text(0.5, -0.15, note_text, transform=self.ax.transAxes, 
                     fontsize=8, color=self.colors['text_secondary'],
                     horizontalalignment='center', verticalalignment='top',
@@ -1439,65 +987,37 @@ No response is required unless alerts are indicated above.
         self.canvas.draw()
     
     def start_alert_monitoring(self):
-        """Start alert monitoring.
-        
-        Note:
-        - Enables temperature alert checks
-        - Updates UI button states
-        - Logs the event for auditing
-        """
+        """Start alert monitoring."""
         self.alert_monitoring_active = True
         self.start_button.config(state="disabled")
         self.stop_button.config(state="normal")
         self.alert_status_var.set("Alerts: ACTIVE")
-        self.alert_status_var.set("Alerts: ACTIVE")
         
         self.log_manager.log_system_event("Alert Monitoring", "Enabled")
-        
         messagebox.showinfo("Alerts Enabled", "Temperature alert monitoring is now active!")
     
     def stop_alert_monitoring(self):
-        """Stop alert monitoring.
-        
-        Note:
-        - Disables temperature alert checks
-        - Updates UI button states
-        - Logs the event for auditing
-        """
+        """Stop alert monitoring."""
         self.alert_monitoring_active = False
         self.start_button.config(state="normal")
         self.stop_button.config(state="disabled")
         self.alert_status_var.set("Alerts: INACTIVE")
         
         self.log_manager.log_system_event("Alert Monitoring", "Disabled")
-        
         messagebox.showinfo("Alerts Disabled", "Temperature alert monitoring is now inactive.")
     
     def manual_refresh(self):
-        """Force an immediate temperature refresh.
-        
-        Note:
-        - Bypasses the normal refresh interval
-        - Useful for immediate status checks
-        - Updates display with current temperature reading
-        """
+        """Force an immediate temperature refresh."""
         raw_temp = self.temp_reader.get_primary_temperature()
         source = self.temp_reader.get_temperature_source()
         
         if raw_temp is not None:
-            # Apply temperature adjustment before display
+            # Apply temperature adjustment
             adjusted_temp = self.apply_temperature_adjustment(raw_temp)
             self.update_display(adjusted_temp, source)
     
     def show_sensor_info(self):
-        """Show detailed sensor information in a popup window.
-        
-        Note:
-        - Creates a modal popup window
-        - Displays all available sensor information
-        - Uses scrolled text widget for large content
-        - Window is centered on parent
-        """
+        """Show detailed sensor information in a popup window."""
         info = self.temp_reader.get_all_sensor_info()
         
         # Create a centered popup
@@ -1543,17 +1063,7 @@ No response is required unless alerts are indicated above.
         
         # Add adjustment info at the top
         adjustment_info = f"""
-{'='*60}
-TEMPERATURE ADJUSTMENT STATUS
-{'='*60}
-Adjustment Enabled: {'Yes' if self.adjustment_enabled else 'No'}
-Current Adjustment: {self.temp_adjustment:+.1f}°C
-Current Raw Temperature: {self.current_raw_temp if self.current_raw_temp is not None else 'N/A'}°C
-Displayed Temperature: {float(self.current_temp_var.get().replace('°C', '')) if '--' not in self.current_temp_var.get() else 'N/A'}°C
-
-{'='*60}
 SENSOR INFORMATION
-{'='*60}
 """
         
         # Insert adjustment info followed by sensor info
@@ -1570,18 +1080,7 @@ SENSOR INFORMATION
         close_button.pack()
     
     def update_settings(self):
-        """Update temperature threshold settings.
-        
-        Important:
-        - Validates that warning temperature is lower than critical
-        - Saves settings to persistent storage
-        - Updates internal variables immediately
-        - Logs changes for auditing
-        
-        Validation:
-        - Ensures numeric values are entered
-        - Prevents invalid threshold relationships
-        """
+        """Update temperature threshold settings."""
         try:
             new_warning = float(self.warning_var.get())
             new_critical = float(self.critical_var.get())
@@ -1603,27 +1102,9 @@ SENSOR INFORMATION
             messagebox.showerror("Error", "Please enter valid numbers for temperature thresholds")
     
     def on_closing(self):
-        """Clean up when closing the application.
-        
-        Important:
-        - Stops all monitoring threads
-        - Saves current settings
-        - Logs shutdown event
-        - Properly destroys the Tkinter root window
-        
-        Thread Safety:
-        - Sets is_monitoring to False to stop threads
-        - Threads check this flag and exit gracefully
-        - Consider implementing thread.join() for cleaner shutdown
-        """
+        """Clean up when closing the application."""
         self.is_monitoring = False
         
-        # Log final adjustment status
-        self.log_manager.log_system_event("Temperature Adjustment Final",
-                                         f"Adjustment: {self.temp_adjustment:+.1f}°C, Enabled: {self.adjustment_enabled}")
-        
         self.log_manager.log_system_event("System Shutdown", "Temperature Monitor shutting down")
-        
         self.save_settings()
-
         self.root.destroy()
