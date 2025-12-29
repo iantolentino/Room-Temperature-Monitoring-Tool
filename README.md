@@ -7,7 +7,7 @@ A professional, feature-rich temperature monitoring application with intelligent
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey)
  
-## ✨ Features
+## ✨ Features 
   
 ### 🎯 **Priority-Based Temperature Detection**
 - **Storage First**: Automatically detects storage device temperatures (HDD/SSD)
